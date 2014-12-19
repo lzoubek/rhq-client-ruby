@@ -1,0 +1,6 @@
+# This is example configuration for integration tests and it should
+# work with RHQ dev setup
+
+url: "http://localhost:7080/rest"
+user: "rhqadmin"
+password: "rhqadmin"
