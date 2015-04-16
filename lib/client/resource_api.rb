@@ -10,19 +10,36 @@ module RHQ
         import_resources(resources({:status => "NEW", :category => "PLATFORM"}))
         import_resources(resources({:status => "NEW"}))
       else
-        print import_resources(res_array)
+        import_resources(res_array)
       end
     end
-    
+
     def platforms(opts={})
-      resources(opts.merge({:status => "COMMITTED",:category => "PLATFORM"}))
+      resources(opts.merge({:category => "PLATFORM"})).map { |p|
+        RHQ::Platform::new(p)
+      }
     end
-    
-    def resources(opts={}, &block)      
-      filter = URI.encode_www_form(opts)
+
+    def resource_children(res_id, opts={})
+      resources_search(opts.merge({:parentId => res_id}))
+    end
+
+    def resources_search(opts={})
+      filter = URI.encode_www_form(@options[:resource_filter].merge(opts))
+      http_get("/resource/search?"+filter).map do |r|
+        RHQ::Resource::new(self,r)
+      end
+    end
+
+    def resources(opts={})
+      filter = URI.encode_www_form(@options[:resource_filter].merge(opts))
       http_get("/resource?"+filter).map do |r|
         RHQ::Resource::new(self,r)
       end
+    end
+
+    def resource(id)
+      RHQ::Resource::new(self,http_get("/resource/#{id}"))
     end
 
     private

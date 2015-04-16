@@ -1,6 +1,6 @@
 module RHQ
   class OperationHistory < BaseObject
-    
+
     attr_reader :client, :id, :href, :json
 
     def initialize(client, json)
@@ -22,12 +22,16 @@ module RHQ
       @json["result"]
     end
 
+    def running?
+      self.status == "In Progress"
+    end
+
     def wait_for
-      while self.status == "In Progress" do
+      while self.running? do
         refresh
-        sleep(@client.options[:poll_interval])
+        sleep(@client.options[:poll_delay])
       end
-    end 
+    end
 
   end
 end

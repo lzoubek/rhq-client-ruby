@@ -1,11 +1,15 @@
 require "rhq/base_object"
 require "rhq/version"
 require "rhq/resource"
+require "rhq/resource_types"
 require "rhq/operation"
+require "rhq/alert"
 
 require "client/resource_api"
 require "client/operation_api"
 require "client/status_api"
+require "client/metrics_api"
+require "client/alert_api"
 
 require "json"
 require "rest_client"
@@ -35,7 +39,14 @@ module RHQ
     def initialize(entrypoint='http://localhost:7080/rest',username='rhqadmin', password='rhqadmin', options={})
       @entrypoint = entrypoint
       @credentials = { :username => username, :password => password }
-      @options = {:poll_interval => 0.2}.merge(options)
+      @options = {
+        :poll_delay => 0.2,
+        :resource_filter => { # default filter options whenever querying /resource endpoint
+          :status => "COMMITTED", # by default we're interested in committed = managed resources only
+          :ps => 999, # this client does not care about paging
+          :strict => true # be strict when filtering by anything
+        }
+      }.merge(options)
     end
 
     def http_get(suburl, headers={})
@@ -70,12 +81,11 @@ module RHQ
       end
     end
 
-    def http_delete(suburl)
+    def http_delete(suburl, headers={})
       begin
-        headers = {:accept => 'application/json'}.merge(auth_header).merge(filter_header)
-        res = rest_client(suburl).delete(headers)
+        res = rest_client(suburl).delete(http_headers(headers))
         puts "#{res}\n" if ENV['RHQCLIENT_LOG_RESPONSE']
-        JSON.parse(res)
+        #JSON.parse(res)
       rescue
         handle_fault $!
       end
@@ -119,7 +129,7 @@ module RHQ
     end
 
     def handle_fault(f)
-      fault = "#{f.message}\n%s\n" % JSON.parse(f.http_body)["message"] rescue 
+      fault = "#{f.message}\n%s\n" % JSON.parse(f.http_body)["message"] rescue
       fault ||= f.message
       raise RhqException::new(fault)
     end

@@ -1,6 +1,6 @@
 module RHQ
   class Resource < BaseObject
-    
+
     attr_reader :coregui
 
     def initialize(client, json)
@@ -13,6 +13,26 @@ module RHQ
 
     def availability
       @json["availability"]
+    end
+
+    def parent
+      @client.resource(@json["parentId"])
+    end
+
+    def children(opts={})
+      @client.resource_children(@id,opts)
+    end
+
+    def alerts(opts={})
+      @client.resource_alerts(@id,opts)
+    end
+
+    def trait(name)
+      metric = metric_schedules.detect{|sch| sch["displayName"] == name}
+      if metric.nil?
+        raise RhqException::new("Metric schedule [#{name}] does not exist for resource #{@json}")
+      end
+      @client.trait_value(metric["scheduleId"])["value"]
     end
 
     def operation(name, params={})
@@ -32,8 +52,12 @@ module RHQ
       @client.operation_history(link(schedule,"history"))
     end
 
+    def operation_history
+      @client.resource_operation_history(@id)
+    end
+
     private
- 
+
       def default_params(op_def)
         required = op_def["params"].select {|param| param["required"] == true}
         hash = {}
@@ -54,6 +78,9 @@ module RHQ
         @operation_definitions ||= @client.operation_definitions(@id)
       end
 
+      def metric_schedules
+        @metric_schedules ||= @client.metric_schedules(@id)
+      end
 
   end
 end
